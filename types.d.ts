@@ -17,3 +17,8 @@ declare interface ImageGroup {
   enableUpload: boolean;
   discussion?: string;
 }
+
+export interface DataPoint {
+  x: number;
+  y: number;
+}

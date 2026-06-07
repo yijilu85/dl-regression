@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { classifier } from "../../src/imageClassifier";
+import { classifier } from "../imageClassifier";
 import { computed, onMounted, ref, useTemplateRef } from "vue";
 import { useDisplay } from "vuetify";
 import {

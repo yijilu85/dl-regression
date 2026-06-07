@@ -2,7 +2,7 @@
   <v-app>
     <v-main>
       <nav class="main-nav mt-4 mb-6 sm:mt-8 sm:mb-8">
-        <RouterLink activeClass="active" to="/">Bild-Klassifikation</RouterLink>
+        <RouterLink activeClass="active" to="/">Regression</RouterLink>
         <RouterLink activeClass="active" to="/documentation"
           >Dokumentation</RouterLink
         >
@@ -15,11 +15,11 @@
 </template>
 
 <script lang="ts" setup>
-import { preload } from "../src/imageClassifier";
+import { preload } from "./imageClassifier";
 import { onMounted } from "vue";
 
 onMounted(async () => {
-  await preload();
+  // await preload();
 });
 </script>
 

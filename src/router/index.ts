@@ -1,10 +1,10 @@
 import { createMemoryHistory, createRouter } from "vue-router";
 
-import ImageClassification from "@/assets/views/ImageClassification.vue";
+import Regression from "@/assets/views/Regression.vue";
 import Documentation from "@/assets/views/Documentation.vue";
 
 const routes = [
-  { path: "/", component: ImageClassification },
+  { path: "/", component: Regression },
   { path: "/documentation", component: Documentation },
 ];
 

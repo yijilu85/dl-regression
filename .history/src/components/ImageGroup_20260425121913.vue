@@ -1,0 +1,19 @@
+<template>
+  <div>
+    <SingleImage imgSrc="/src/assets/images/cat.jpg" :correct="true" />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref, useTemplateRef } from "vue";
+
+const props = defineProps<{
+  groupData: ImageGroup;
+}>();
+
+onMounted(async () => {});
+</script>
+
+<style scoped>
+@reference "../styles/tailwind.css";
+</style>

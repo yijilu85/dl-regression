@@ -1,0 +1,15 @@
+@layer vuetify-overrides {
+  code,
+  pre,
+  .v-code {
+    font-family: var(--font-mono);
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  // background: var(--color-background);
+  background-color: green;
+  color: var(--color-on-surface);
+}

@@ -1,0 +1,45 @@
+<template>
+  <v-app>
+    <v-main>
+      <!-- <SingleImage imgSrc="/src/assets/images/cat.jpg" :correct="true" /> -->
+      <!-- <SingleImage imgSrc="/src/assets/images/bird.jpg" :correct="true" /> -->
+      <div
+        v-for="preview in uploadedFilePreviews"
+        :key="preview.url"
+        class="preview-item"
+      >
+        <!-- Image -->
+        <!-- <img
+          v-if="preview.type === 'image'"
+          :src="preview.url"
+          :alt="preview.name"
+          class="preview-img"
+        /> -->
+        <SingleImage :imgSrc="preview.url" :correct="true" />
+      </div>
+      <FileUpload @file-selected="handleFilesSelected($event)"> </FileUpload>
+    </v-main>
+  </v-app>
+</template>
+
+<script lang="ts" setup>
+import SingleImage from "@/components/SingleImage.vue";
+import FileUpload from "./components/FileUpload.vue";
+import { ref, computed } from "vue";
+
+const uploadedFilePreviews = ref<FilePreview[]>([]);
+const files = ref<File[]>([]);
+
+const handleFilesSelected = (filePreview: FilePreview) => {
+  console.log("File selected:", filePreview);
+  uploadedFilePreviews.value.push(filePreview);
+};
+
+// const previews = computed<FilePreview[]>(() =>
+//   files.value.map((file) => ({
+//     url: URL.createObjectURL(file),
+//     name: file.name,
+//     type: "image",
+//   })),
+// );
+</script>

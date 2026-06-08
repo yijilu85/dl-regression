@@ -1,0 +1,33 @@
+const imgFolderPath = "/src/assets/images/";
+
+const imgPath = (fileName: string): string => {
+  return imgFolderPath + fileName;
+};
+
+export const setupImageGroups = [
+  {
+    name: "Vorauswahl korrekte Klassifikationen",
+    label: true,
+    images: [
+      imgPath("daisy.jpg"),
+      imgPath("tiger-cat.jpg"),
+      imgPath("ant.jpg"),
+    ],
+    order: 1,
+    enableUpload: false,
+  },
+  {
+    name: "Vorauswahl falsche Klassifikationen",
+    label: false,
+    images: [imgPath("book.jpg"), imgPath("cactus.jpg"), imgPath("baby.jpg")],
+    order: 2,
+    enableUpload: false,
+  },
+  {
+    name: "Klassifikationen mit Upload",
+    label: undefined,
+    images: [],
+    order: 3,
+    enableUpload: true,
+  },
+];

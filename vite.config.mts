@@ -6,8 +6,8 @@ import { defineConfig } from "vite";
 import Vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  base: "dl-image-classification",
+export default defineConfig(({ command }) => ({
+  base: command === "serve" ? "/" : "/dl-regression/",
   plugins: [
     tailwindcss(),
     Vue({
@@ -46,4 +46,4 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-});
+}));

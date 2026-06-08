@@ -2,7 +2,19 @@ import * as tf from "@tensorflow/tfjs";
 import * as tfvis from "@tensorflow/tfjs-vis";
 import type { DataPoint } from "../../../../regression-training-app/types";
 
-export const createModel = (units: number) => {
+export type NormalizationData = {
+  inputMax: tf.Scalar;
+  inputMin: tf.Scalar;
+  labelMax: tf.Scalar;
+  labelMin: tf.Scalar;
+};
+
+export type TensorData = NormalizationData & {
+  inputs: tf.Tensor2D;
+  labels: tf.Tensor2D;
+};
+
+export const createModel = (units: number): tf.Sequential => {
   const model = tf.sequential();
 
   model.add(
@@ -22,40 +34,50 @@ export const createModel = (units: number) => {
     }),
   );
 
-  model.add(tf.layers.dense({ units: 1 }));
+  model.add(tf.layers.dense({ units: 1, activation: "linear" }));
 
   return model;
 };
 
 export const shuffleAndGroupRandomly = (input: DataPoint[]) => {
-  const shuffled = [...input].sort(() => Math.random() - 0.5);
+  const shuffled = [...input];
+  tf.util.shuffle(shuffled);
+
   return {
     group1: shuffled.slice(0, 50),
     group2: shuffled.slice(50),
   };
 };
 
-export const convertToTensor = (data: DataPoint[]) => {
+export const convertToTensor = (
+  data: DataPoint[],
+  normalizationData?: NormalizationData,
+): TensorData => {
   return tf.tidy(() => {
-    tf.util.shuffle(data);
+    const shuffled = [...data];
+    tf.util.shuffle(shuffled);
 
-    const inputs = data.map((d) => d.x);
-    const labels = data.map((d) => d.y);
+    const inputs = shuffled.map((d) => d.x);
+    const labels = shuffled.map((d) => d.y);
 
     const inputTensor = tf.tensor2d(inputs, [inputs.length, 1]);
     const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
 
-    const inputMax = inputTensor.max();
-    const inputMin = inputTensor.min();
-    const labelMax = labelTensor.max();
-    const labelMin = labelTensor.min();
+    const inputMax =
+      normalizationData?.inputMax ?? (inputTensor.max() as tf.Scalar);
+    const inputMin =
+      normalizationData?.inputMin ?? (inputTensor.min() as tf.Scalar);
+    const labelMax =
+      normalizationData?.labelMax ?? (labelTensor.max() as tf.Scalar);
+    const labelMin =
+      normalizationData?.labelMin ?? (labelTensor.min() as tf.Scalar);
 
     const normalizedInputs = inputTensor
       .sub(inputMin)
-      .div(inputMax.sub(inputMin));
+      .div(inputMax.sub(inputMin)) as tf.Tensor2D;
     const normalizedLabels = labelTensor
       .sub(labelMin)
-      .div(labelMax.sub(labelMin));
+      .div(labelMax.sub(labelMin)) as tf.Tensor2D;
 
     return {
       inputs: normalizedInputs,
@@ -89,11 +111,11 @@ export const trainModel = async (
   labels: tf.Tensor<tf.Rank>,
   epochs: number,
   batchSize: number,
+  chartName: string,
 ) => {
   model.compile({
     optimizer: tf.train.adam(0.01),
     loss: tf.losses.meanSquaredError,
-    metrics: ["mse"],
   });
 
   return model.fit(inputs, labels, {
@@ -101,8 +123,8 @@ export const trainModel = async (
     epochs,
     shuffle: true,
     callbacks: tfvis.show.fitCallbacks(
-      { name: "Training Performance" },
-      ["loss", "mse"],
+      { name: chartName },
+      ["loss"],
       {
         height: 300,
         callbacks: ["onEpochEnd"],
@@ -113,14 +135,21 @@ export const trainModel = async (
 
 export const testModel = (
   model: tf.Sequential,
-  inputData: any,
-  normalizationData: any,
-) => {
+  inputData: DataPoint[],
+  normalizationData: NormalizationData,
+  container: HTMLDivElement | null,
+): Promise<void> => {
+  if (!container || !container.isConnected) {
+    return Promise.resolve();
+  }
+
   const { inputMax, inputMin, labelMin, labelMax } = normalizationData;
 
   const [xs, preds] = tf.tidy(() => {
     const xsNorm = tf.linspace(0, 1, 100);
-    const predictions = model.predict(xsNorm.reshape([100, 1]));
+    const predictions = model.predict(
+      xsNorm.reshape([100, 1]),
+    ) as tf.Tensor2D;
 
     const unNormXs = xsNorm.mul(inputMax.sub(inputMin)).add(inputMin);
 
@@ -139,16 +168,46 @@ export const testModel = (
     y: d.y,
   }));
 
-  tfvis.render.scatterplot(
-    { name: "Model Predictions vs Original Data" },
+  return tfvis.render.scatterplot(
+    { drawArea: container },
     {
       values: [originalPoints, predictedPoints],
       series: ["original", "predicted"],
     },
     {
-      xLabel: "Horsepower",
-      yLabel: "MPG",
-      height: 300,
+      xLabel: "x",
+      yLabel: "y",
+      height: 400,
     },
   );
+};
+
+export const evaluateModel = (
+  model: tf.Sequential,
+  data: DataPoint[],
+  normalizationData: NormalizationData,
+): number => {
+  return tf.tidy(() => {
+    const normalizedInputs = tf
+      .tensor2d(
+        data.map((point) => point.x),
+        [data.length, 1],
+      )
+      .sub(normalizationData.inputMin)
+      .div(
+        normalizationData.inputMax.sub(normalizationData.inputMin),
+      ) as tf.Tensor2D;
+    const normalizedPredictions = model.predict(
+      normalizedInputs,
+    ) as tf.Tensor2D;
+    const predictions = normalizedPredictions
+      .mul(normalizationData.labelMax.sub(normalizationData.labelMin))
+      .add(normalizationData.labelMin);
+    const labels = tf.tensor2d(
+      data.map((point) => point.y),
+      [data.length, 1],
+    );
+
+    return tf.losses.meanSquaredError(labels, predictions).mean().dataSync()[0];
+  });
 };

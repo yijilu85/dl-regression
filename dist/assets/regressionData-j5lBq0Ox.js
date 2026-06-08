@@ -1,0 +1,1 @@
+import{C as e,D as t,j as n}from"./VCard-DyxX1HiY.js";var r=100,i=.05,a,o=e=>.5*(e+.8)*(e+1.8)*(e-.2)*(e-.3)*(e-1.9)+1,s=async()=>{let a=n([r],-2,2),s=Array.from(await a.data());a.dispose();let{group1:c,group2:l}=t(s.map(e=>({x:e,y:o(e)}))),[u,d]=await Promise.all([e(c,i),e(l,i)]);return{cleanTraining:c,cleanTest:l,noisyTraining:u,noisyTest:d}},c=()=>(a??=s(),a);export{c as t};

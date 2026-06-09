@@ -1,5 +1,5 @@
 <template>
-  <h2 clasS="mt-8">R4: Overfitting bei Epochs 1000</h2>
+  <h2 clasS="mt-8">R4: Overfitting bei Epochs 1500</h2>
 
   <div class="charts-grid">
     <v-card class="pa-4">
@@ -35,7 +35,7 @@ const noisyTrainDataContainer = ref<HTMLDivElement | null>(null);
 const noisyTestDataContainer = ref<HTMLDivElement | null>(null);
 const trainingLoss = ref<number>();
 const testLoss = ref<number>();
-const OVERFIT_EPOCHS = 1000;
+const OVERFIT_EPOCHS = 1500;
 
 const formatLoss = (loss?: number): string =>
   loss === undefined ? "wird berechnet..." : loss.toFixed(6);

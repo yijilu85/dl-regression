@@ -14,15 +14,6 @@
   </v-app>
 </template>
 
-<script lang="ts" setup>
-import { preload } from "./imageClassifier";
-import { onMounted } from "vue";
-
-onMounted(async () => {
-  // await preload();
-});
-</script>
-
 <style lang="scss">
 .active {
   text-decoration: underline;

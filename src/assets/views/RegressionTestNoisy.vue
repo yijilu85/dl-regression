@@ -30,7 +30,6 @@
           <th>Epochen</th>
           <th>Trainings-MSE</th>
           <th>Test-MSE</th>
-          <th>Bewertung</th>
         </tr>
       </thead>
       <tbody>
@@ -44,19 +43,6 @@
           <td>{{ result.epochs }}</td>
           <td>{{ formatLoss(result.trainingMse) }}</td>
           <td>{{ formatLoss(result.testMse) }}</td>
-          <td>
-            <v-chip
-              v-if="
-                isFinished &&
-                result.epochs === BEST_FIT_EPOCHS &&
-                result.trainingMse !== undefined
-              "
-              color="success"
-              size="small"
-            >
-              Best-Fit
-            </v-chip>
-          </td>
         </tr>
       </tbody>
     </v-table>

@@ -1,6 +1,6 @@
 import * as tf from "@tensorflow/tfjs";
 import * as tfvis from "@tensorflow/tfjs-vis";
-import type { DataPoint } from "../../../../regression-training-app/types";
+import type { DataPoint } from "../../../types";
 
 export type NormalizationData = {
   inputMax: tf.Scalar;

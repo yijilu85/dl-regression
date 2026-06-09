@@ -1,5 +1,5 @@
 <template>
-  <h2 clasS="mt-8">R4: Overfitting bei Epochs 1500</h2>
+  <h2 clasS="mt-8">R4: Overfitting bei Epochs 1000</h2>
 
   <div class="charts-grid">
     <v-card class="pa-4">
@@ -87,7 +87,6 @@ const plot = async (): Promise<void> => {
   tensorTrainingData.inputMin.dispose();
   tensorTrainingData.labelMax.dispose();
   tensorTrainingData.labelMin.dispose();
-
 };
 onMounted(plot);
 </script>

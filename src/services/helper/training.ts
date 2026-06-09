@@ -112,11 +112,14 @@ export const trainModel = async (
   epochs: number,
   batchSize: number,
   chartName: string,
+  compileModel = true,
 ) => {
-  model.compile({
-    optimizer: tf.train.adam(0.01),
-    loss: tf.losses.meanSquaredError,
-  });
+  if (compileModel) {
+    model.compile({
+      optimizer: tf.train.adam(0.01),
+      loss: tf.losses.meanSquaredError,
+    });
+  }
 
   return model.fit(inputs, labels, {
     batchSize: batchSize,

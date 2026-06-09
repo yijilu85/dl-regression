@@ -9,11 +9,20 @@
 
   <RegressionTestNoisy
     v-if="completedStep >= 2"
-    @finished="completedStep = 3"
+    @finished="handleBestFitFinished"
     class="mb-6"
   />
 
-  <RegressionTestOverfitting v-if="completedStep >= 3" class="mb-6" />
+  <RegressionTestOverfitting
+    v-if="
+      completedStep >= 3 &&
+      bestFitEpochs !== undefined &&
+      bestFitTestMse !== undefined
+    "
+    :best-fit-epochs="bestFitEpochs"
+    :best-fit-test-mse="bestFitTestMse"
+    class="mb-6"
+  />
 </template>
 
 <script lang="ts" setup>
@@ -33,6 +42,17 @@ const RegressionTestOverfitting = defineAsyncComponent(
 );
 
 const completedStep = ref(0);
+const bestFitEpochs = ref<number>();
+const bestFitTestMse = ref<number>();
+
+const handleBestFitFinished = (result: {
+  epochs: number;
+  testMse: number;
+}): void => {
+  bestFitEpochs.value = result.epochs;
+  bestFitTestMse.value = result.testMse;
+  completedStep.value = 3;
+};
 </script>
 
 <style scoped></style>

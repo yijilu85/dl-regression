@@ -1,7 +1,9 @@
 <template>
   <h2 class="mt-8">
     R3: Best Fit
-    <span v-if="isFinished">bei {{ BEST_FIT_EPOCHS }} Epochen</span>
+    <span v-if="isFinished && bestFitEpochs !== undefined">
+      bei {{ bestFitEpochs }} Epochen
+    </span>
   </h2>
 
   <div class="charts-grid">
@@ -37,7 +39,8 @@
           v-for="result in trainingResults"
           :key="result.epochs"
           :class="{
-            'best-result': isFinished && result.epochs === BEST_FIT_EPOCHS,
+            'best-result':
+              isFinished && result.epochs === bestFitEpochs,
           }"
         >
           <td>{{ result.epochs }}</td>
@@ -61,7 +64,7 @@ import {
 import { getRegressionDataset } from "../../services/helper/regressionData";
 
 const emit = defineEmits<{
-  finished: [];
+  finished: [result: { epochs: number; testMse: number }];
 }>();
 
 const noisyTrainDataContainer = ref<HTMLDivElement | null>(null);
@@ -69,7 +72,7 @@ const noisyTestDataContainer = ref<HTMLDivElement | null>(null);
 const trainingLoss = ref<number>();
 const testLoss = ref<number>();
 const isFinished = ref(false);
-const BEST_FIT_EPOCHS = 600;
+const bestFitEpochs = ref<number>();
 
 type TrainingResult = {
   epochs: number;
@@ -95,6 +98,7 @@ const plot = async (): Promise<void> => {
 
   const tensorTrainingData = convertToTensor(noisyTraining);
   let bestFitModel: ReturnType<typeof createModel> | undefined;
+  let lowestTestMse = Number.POSITIVE_INFINITY;
 
   for (const result of trainingResults.value) {
     const model = createModel(100);
@@ -115,8 +119,11 @@ const plot = async (): Promise<void> => {
     );
     result.testMse = evaluateModel(model, noisyTest, tensorTrainingData);
 
-    if (result.epochs === BEST_FIT_EPOCHS) {
+    if (result.testMse < lowestTestMse) {
+      bestFitModel?.dispose();
       bestFitModel = model;
+      lowestTestMse = result.testMse;
+      bestFitEpochs.value = result.epochs;
       trainingLoss.value = result.trainingMse;
       testLoss.value = result.testMse;
     } else {
@@ -159,8 +166,15 @@ const plot = async (): Promise<void> => {
   tensorTrainingData.labelMax.dispose();
   tensorTrainingData.labelMin.dispose();
 
+  if (bestFitEpochs.value === undefined || testLoss.value === undefined) {
+    return;
+  }
+
   isFinished.value = true;
-  emit("finished");
+  emit("finished", {
+    epochs: bestFitEpochs.value,
+    testMse: testLoss.value,
+  });
 };
 onMounted(plot);
 </script>

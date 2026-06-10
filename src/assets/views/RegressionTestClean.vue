@@ -71,6 +71,9 @@
             class="chart-skeleton"
           />
         </div>
+        <p class="mt-2">
+          <strong>Modell:</strong> {{ scatterplotEpochs }} Epochen
+        </p>
         <p class="mt-2 mse-value">
           <strong>Trainings-MSE:</strong>
           <span v-if="trainingMse !== undefined">
@@ -91,6 +94,9 @@
             class="chart-skeleton"
           />
         </div>
+        <p class="mt-2">
+          <strong>Modell:</strong> {{ scatterplotEpochs }} Epochen
+        </p>
         <p class="mt-2 mse-value">
           <strong>Test-MSE:</strong>
           <span v-if="testMse !== undefined">{{ formatLoss(testMse) }}</span>
@@ -165,6 +171,8 @@ type TrainingResult = {
 const trainingResults = ref<TrainingResult[]>(
   [100, 200, 300, 400, 500].map((epochs) => ({ epochs })),
 );
+const scatterplotEpochs =
+  trainingResults.value[trainingResults.value.length - 1].epochs;
 
 const formatLoss = (loss: number): string => loss.toFixed(6);
 const applyYFunction = (x: number): number =>

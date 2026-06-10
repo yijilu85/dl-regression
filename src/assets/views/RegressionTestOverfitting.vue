@@ -112,6 +112,13 @@
             class="chart-skeleton"
           />
         </div>
+        <p class="mt-2">
+          <strong>Modell:</strong>
+          <span v-if="scatterplotEpochs !== undefined">
+            {{ scatterplotEpochs }} Epochen
+          </span>
+          <v-skeleton-loader v-else type="text" class="value-skeleton" />
+        </p>
         <p class="mt-2 mse-value">
           <strong>Trainings-MSE:</strong>
           <span v-if="trainingLoss !== undefined">
@@ -132,6 +139,13 @@
             class="chart-skeleton"
           />
         </div>
+        <p class="mt-2">
+          <strong>Modell:</strong>
+          <span v-if="scatterplotEpochs !== undefined">
+            {{ scatterplotEpochs }} Epochen
+          </span>
+          <v-skeleton-loader v-else type="text" class="value-skeleton" />
+        </p>
         <p class="mt-2 mse-value">
           <strong>Test-MSE:</strong>
           <span v-if="testLoss !== undefined">{{ formatLoss(testLoss) }}</span>
@@ -186,6 +200,7 @@ const noisyTestDataContainer = ref<HTMLDivElement | null>(null);
 const trainingLoss = ref<number>();
 const testLoss = ref<number>();
 const overfitEpochs = ref<number>();
+const scatterplotEpochs = ref<number>();
 const searchFinished = ref(false);
 const trainingResults = ref<TrainingResult[]>([]);
 const hasStarted = ref(false);
@@ -326,6 +341,7 @@ const plot = async (): Promise<void> => {
     }
   }
 
+  scatterplotEpochs.value = currentEpochs;
   searchFinished.value = true;
 
   const trainingContainer = noisyTrainDataContainer.value;

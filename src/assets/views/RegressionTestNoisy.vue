@@ -89,6 +89,13 @@
             class="chart-skeleton"
           />
         </div>
+        <p class="mt-2">
+          <strong>Modell:</strong>
+          <span v-if="bestFitEpochs !== undefined">
+            {{ bestFitEpochs }} Epochen
+          </span>
+          <v-skeleton-loader v-else type="text" class="value-skeleton" />
+        </p>
         <p class="mt-2 mse-value">
           <strong>Trainings-MSE:</strong>
           <span v-if="trainingLoss !== undefined">
@@ -109,6 +116,13 @@
             class="chart-skeleton"
           />
         </div>
+        <p class="mt-2">
+          <strong>Modell:</strong>
+          <span v-if="bestFitEpochs !== undefined">
+            {{ bestFitEpochs }} Epochen
+          </span>
+          <v-skeleton-loader v-else type="text" class="value-skeleton" />
+        </p>
         <p class="mt-2 mse-value">
           <strong>Test-MSE:</strong>
           <span v-if="testLoss !== undefined">{{ formatLoss(testLoss) }}</span>

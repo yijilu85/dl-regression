@@ -17,6 +17,14 @@
       Häufungen oder größeren Lücken in der Datenverteilung.
     </v-card-text>
   </v-card>
+  <v-card class="mt-4 pa-4">
+    <v-card-title>R2: MSE-Verlauf über die Epochen</v-card-title>
+    <v-card-text>
+      <div class="mse-chart-container">
+        <Line :data="mseChartData" :options="mseChartOptions" />
+      </div>
+    </v-card-text>
+  </v-card>
 
   <v-card class="mt-4 pa-4">
     <v-card-title>R2: Vergleich der Trainingsergebnisse</v-card-title>
@@ -48,15 +56,6 @@
     </v-table>
     <v-card-text v-else>
       <v-skeleton-loader type="table-row-divider@4" />
-    </v-card-text>
-  </v-card>
-
-  <v-card class="mt-4 pa-4">
-    <v-card-title>R2: MSE-Verlauf über die Epochen</v-card-title>
-    <v-card-text>
-      <div class="mse-chart-container">
-        <Line :data="mseChartData" :options="mseChartOptions" />
-      </div>
     </v-card-text>
   </v-card>
 

@@ -9,7 +9,8 @@
   <v-card class="parameter-card mt-4 pa-4">
     <v-card-title>Trainingsparameter</v-card-title>
     <v-card-text class="parameter-grid">
-      <span><strong>Getestete Epochen:</strong> 100 bis 900</span>
+      <span><strong>Getestete Epochen:</strong> 100 bis 1500</span>
+      <span><strong>Schrittweite:</strong> 100 Epochen</span>
       <span><strong>Best-Fit-Kriterium:</strong> kleinste Test-MSE</span>
       <span>
         <strong>Best-Fit-Epochen:</strong>
@@ -20,16 +21,20 @@
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Von 100 bis 1000 wird in jeweils 100er Epochenschritten ein unabhängiges
-      Modell neu trainiert, um den Best Fit anhand des kleinsten Test-MSE pro
-      Durchlauf zu ermitteln. Damit soll die beste Generalisierung gefunden
-      werden. Die Experimente haben ergeben, dass der Best-Fit je nach
-      Verteilung der Daten am häufigsten im Bereich 500-700 Epochen liegt. 1000
-      wird als obere Grenze angenommen, da hier erfahrungsgemäß bereits
-      Overfitting vorliegen kann.
+      Ein Modell wird zunächst für 100 Epochen trainiert und anschließend in
+      100er-Schritten bis 1500 Epochen weitertrainiert. Nach jeder Stufe werden
+      Trainings- und Test-MSE gemessen. Der Modellzustand mit der kleinsten
+      Test-MSE wird als Best Fit gesichert und für die Scatterplots verwendet.
     </v-card-text>
   </v-card>
-
+  <v-card class="mt-4 pa-4">
+    <v-card-title>R3: MSE-Verlauf über die Epochen</v-card-title>
+    <v-card-text>
+      <div class="mse-chart-container">
+        <Line :data="mseChartData" :options="mseChartOptions" />
+      </div>
+    </v-card-text>
+  </v-card>
   <v-card class="mt-4 pa-4">
     <v-card-title>R3: Vergleich der Trainingsergebnisse</v-card-title>
     <v-table v-if="active || isFinished">
@@ -66,15 +71,6 @@
     </v-table>
     <v-card-text v-else>
       <v-skeleton-loader type="table-row-divider@4" />
-    </v-card-text>
-  </v-card>
-
-  <v-card class="mt-4 pa-4">
-    <v-card-title>R3: MSE-Verlauf über die Epochen</v-card-title>
-    <v-card-text>
-      <div class="mse-chart-container">
-        <Line :data="mseChartData" :options="mseChartOptions" />
-      </div>
     </v-card-text>
   </v-card>
 
@@ -190,7 +186,10 @@ type TrainingResult = {
 };
 
 const trainingResults = ref<TrainingResult[]>(
-  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map((epochs) => ({
+  [
+    100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400,
+    1500,
+  ].map((epochs) => ({
     epochs,
   })),
 );
@@ -249,19 +248,21 @@ const plot = async (): Promise<void> => {
   const { noisyTraining, noisyTest } = await getRegressionDataset();
 
   const tensorTrainingData = convertToTensor(noisyTraining);
-  let bestFitModel: ReturnType<typeof createModel> | undefined;
+  const model = createModel(100);
+  let bestFitWeights: ReturnType<typeof model.getWeights> | undefined;
   let lowestTestMse = Number.POSITIVE_INFINITY;
 
-  for (const result of trainingResults.value) {
-    const model = createModel(100);
-
+  for (const [index, result] of trainingResults.value.entries()) {
     await trainModel(
       model,
       tensorTrainingData.inputs,
       tensorTrainingData.labels,
-      result.epochs,
+      index === 0
+        ? result.epochs
+        : result.epochs - trainingResults.value[index - 1].epochs,
       32,
-      `R3 Training: ${result.epochs} Epochen`,
+      `R3 Training: bis ${result.epochs} Epochen`,
+      index === 0,
     );
 
     result.trainingMse = evaluateModel(
@@ -272,26 +273,28 @@ const plot = async (): Promise<void> => {
     result.testMse = evaluateModel(model, noisyTest, tensorTrainingData);
 
     if (result.testMse < lowestTestMse) {
-      bestFitModel?.dispose();
-      bestFitModel = model;
+      bestFitWeights?.forEach((weight) => weight.dispose());
+      bestFitWeights = model.getWeights().map((weight) => weight.clone());
       lowestTestMse = result.testMse;
       bestFitEpochs.value = result.epochs;
       trainingLoss.value = result.trainingMse;
       testLoss.value = result.testMse;
-    } else {
-      model.dispose();
     }
   }
 
-  if (!bestFitModel) {
+  if (!bestFitWeights) {
+    model.dispose();
     return;
   }
+
+  model.setWeights(bestFitWeights);
+  bestFitWeights.forEach((weight) => weight.dispose());
 
   const trainingContainer = noisyTrainDataContainer.value;
   const testContainer = noisyTestDataContainer.value;
 
   if (!trainingContainer || !testContainer) {
-    bestFitModel.dispose();
+    model.dispose();
     tensorTrainingData.inputs.dispose();
     tensorTrainingData.labels.dispose();
     tensorTrainingData.inputMax.dispose();
@@ -299,16 +302,11 @@ const plot = async (): Promise<void> => {
     return;
   }
 
-  await testModel(
-    bestFitModel,
-    noisyTraining,
-    tensorTrainingData,
-    trainingContainer,
-  );
+  await testModel(model, noisyTraining, tensorTrainingData, trainingContainer);
 
-  await testModel(bestFitModel, noisyTest, tensorTrainingData, testContainer);
+  await testModel(model, noisyTest, tensorTrainingData, testContainer);
 
-  bestFitModel.dispose();
+  model.dispose();
   tensorTrainingData.inputs.dispose();
   tensorTrainingData.labels.dispose();
   tensorTrainingData.inputMax.dispose();

@@ -140,20 +140,21 @@ const rawTemplate = `
 </template>`;
 const epochRange = `
   const trainingResults = ref<TrainingResult[]>(
-  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map((epochs) => ({
+  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500].map((epochs) => ({
     epochs,
   })),
 );`;
 const trainingForAllEpochs = `
-  for (const result of trainingResults.value) {
-    const model = createModel(100);
-
+  for (const [index, result] of trainingResults.value.entries()) {
     await trainModel(
       model,
       tensorTrainingData.inputs,
       tensorTrainingData.labels,
-      result.epochs,
+      index === 0
+        ? result.epochs
+        : result.epochs - trainingResults.value[index - 1].epochs,
       32,
+      index === 0,
     );
 
     result.trainingMse = evaluateModel(
@@ -164,15 +165,33 @@ const trainingForAllEpochs = `
     result.testMse = evaluateModel(model, noisyTest, tensorTrainingData);
 
     if (result.testMse < lowestTestMse) {
-      bestFitModel?.dispose();
-      bestFitModel = model;
+      bestFitWeights?.forEach((weight) => weight.dispose());
+      bestFitWeights = model.getWeights().map((weight) => weight.clone());
       lowestTestMse = result.testMse;
       bestFitEpochs.value = result.epochs;
       trainingLoss.value = result.trainingMse;
       testLoss.value = result.testMse;
-    } else {
-      model.dispose();
     }
+  }
+
+  if (!bestFitWeights) {
+    model.dispose();
+    return;
+  }
+
+  model.setWeights(bestFitWeights);
+  bestFitWeights.forEach((weight) => weight.dispose());
+
+  const trainingContainer = noisyTrainDataContainer.value;
+  const testContainer = noisyTestDataContainer.value;
+
+  if (!trainingContainer || !testContainer) {
+    model.dispose();
+    tensorTrainingData.inputs.dispose();
+    tensorTrainingData.labels.dispose();
+    tensorTrainingData.inputMax.dispose();
+    tensorTrainingData.inputMin.dispose();
+    return;
   }`;
 </script>
 

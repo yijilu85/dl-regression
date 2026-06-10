@@ -36,29 +36,36 @@
         <v-skeleton-loader v-else type="text" class="value-skeleton" />
       </span>
       <span>
-        <strong>Overfitting-Kriterium:</strong> Trainings-MSE sinkt, Test-MSE
-        steigt und der Abstand wächst in zwei aufeinanderfolgenden Übergängen
+        <strong>Overfitting-Kriterium:</strong> Test-MSE steigt und der Abstand
+        zur Trainings-MSE wächst in zwei aufeinanderfolgenden Übergängen
       </span>
     </v-card-text>
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Das zweite Modell wird zunächst für 100 Epochen und anschließend bis 1500
-      Epochen in 100er-Schritten trainiert. Nach allen Durchgängen wird die
-      kleinste Test-MSE als Best Fit markiert. Erst in den darauffolgenden
-      Stufen wird Overfitting gesucht: In zwei aufeinanderfolgenden Übergängen
-      muss die Trainings-MSE sinken, die Test-MSE steigen und der Abstand
+      Das zweite Modell wird zunächst für 100 Epochen und anschließend bis
+      {{ MAX_EPOCHS }} Epochen in 100er-Schritten trainiert. Nach allen
+      Durchgängen wird die kleinste Test-MSE als Best Fit markiert. Erst in den
+      darauffolgenden Stufen wird Overfitting gesucht: In zwei
+      aufeinanderfolgenden Übergängen müssen die Test-MSE und der Abstand
       zwischen Test- und Trainings-MSE wachsen. Markiert wird die erste Stufe
       dieser bestätigten Entwicklung. Die Auswertung erfolgt rückblickend und
       beeinflusst das Training nicht.
     </v-card-text>
   </v-card>
-
+  <v-card class="mt-4 pa-4">
+    <v-card-title>R4: MSE-Verlauf über die Epochen</v-card-title>
+    <v-card-text>
+      <div class="mse-chart-container">
+        <Line :data="mseChartData" :options="mseChartOptions" />
+      </div>
+    </v-card-text>
+  </v-card>
   <v-card class="mt-4 pa-4">
     <v-card-title>R4: Suche ab {{ START_EPOCHS }} Epochen</v-card-title>
     <v-card-subtitle>
-      Overfitting: zwei aufeinanderfolgende Übergänge mit sinkender
-      Trainings-MSE, steigender Test-MSE und wachsendem Abstand.
+      Overfitting: zwei aufeinanderfolgende Übergänge mit steigender Test-MSE
+      und wachsendem Abstand zur Trainings-MSE.
     </v-card-subtitle>
     <v-table v-if="active || searchFinished">
       <thead>
@@ -95,15 +102,6 @@
       Nach dem Best Fit wurde bis {{ MAX_EPOCHS }} Epochen kein bestätigtes
       Overfitting gefunden.
     </p>
-  </v-card>
-
-  <v-card class="mt-4 pa-4">
-    <v-card-title>R4: MSE-Verlauf über die Epochen</v-card-title>
-    <v-card-text>
-      <div class="mse-chart-container">
-        <Line :data="mseChartData" :options="mseChartOptions" />
-      </div>
-    </v-card-text>
   </v-card>
 
   <div class="charts-grid mt-4">
@@ -212,7 +210,7 @@ const hasStarted = ref(false);
 
 const EPOCH_STEP = 100;
 const START_EPOCHS = 100;
-const MAX_EPOCHS = 1500;
+const MAX_EPOCHS = 3000;
 
 type TrainingResult = {
   epochs: number;
@@ -229,11 +227,7 @@ const hasOverfittingTrend = (
   const previousGap = previous.testMse - previous.trainingMse;
   const currentGap = current.testMse - current.trainingMse;
 
-  return (
-    current.trainingMse < previous.trainingMse &&
-    current.testMse > previous.testMse &&
-    currentGap > previousGap
-  );
+  return current.testMse > previous.testMse && currentGap > previousGap;
 };
 
 const mseChartData = computed<ChartData<"line">>(() => ({

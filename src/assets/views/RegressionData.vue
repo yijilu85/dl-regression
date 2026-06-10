@@ -96,18 +96,6 @@ const plot = async (): Promise<void> => {
   noisyTrainingData.value = noisyTraining;
   noisyTestData.value = noisyTest;
 
-  const model = createModel(100);
-  const tensorTrainingData = convertToTensor(cleanTrainingData.value);
-
-  await trainModel(
-    model,
-    tensorTrainingData.inputs,
-    tensorTrainingData.labels,
-    100,
-    32,
-    "R1 Training",
-  );
-
   await tfvis.render.scatterplot(
     cleanChartContainer.value,
     {

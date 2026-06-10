@@ -44,14 +44,14 @@
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
       Ein neues Modell wird bis {{ MAX_EPOCHS }} Epochen in 100er-Schritten
-      trainiert. Nach allen Durchgängen wird die kleinste Test-MSE als Best Fit
-      markiert. Erst in den darauffolgenden Stufen wird Overfitting gesucht:
-      Overfitting wird dann registriert, wenn in zwei aufeinanderfolgenden
-      Übergängen die Test-MSE und der Abstand zwischen Test- und Trainings-MSE
-      wachsen. Die erste so gefundene Stufe wird als Overfit-Schwelle
-      registriert und die zugehörigen Gewichte werden für den Scatterplot
-      verwendet. Die Auswertung erfolgt rückblickend und beeinflusst das
-      Training nicht.
+      trainiert. Nach Abschluss des Trainings wird die kleinste Test-MSE als
+      Best Fit markiert. Erst in den darauffolgenden Stufen wird Overfitting
+      gesucht: Overfitting wird dann registriert, wenn in zwei
+      aufeinanderfolgenden Übergängen die Test-MSE und der Abstand zwischen
+      Test- und Trainings-MSE wachsen. Die erste so gefundene Stufe wird als
+      Overfit-Schwelle registriert und die zugehörigen Gewichte werden für den
+      Scatterplot verwendet. Die Auswertung erfolgt rückblickend und beeinflusst
+      das Training nicht.
     </v-card-text>
   </v-card>
   <v-card class="mt-4 pa-4">

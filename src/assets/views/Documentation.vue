@@ -140,21 +140,23 @@ const rawTemplate = `
 </template>`;
 const epochRange = `
   const trainingResults = ref<TrainingResult[]>(
-  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500].map((epochs) => ({
+  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200].map((epochs) => ({
     epochs,
   })),
 );`;
 const trainingForAllEpochs = `
-  for (const [index, result] of trainingResults.value.entries()) {
+ let bestFitModel: ReturnType<typeof createModel> | undefined;
+  let lowestTestMse = Number.POSITIVE_INFINITY;
+
+  for (const result of trainingResults.value) {
+    const model = createModel(100);
+
     await trainModel(
       model,
       tensorTrainingData.inputs,
       tensorTrainingData.labels,
-      index === 0
-        ? result.epochs
-        : result.epochs - trainingResults.value[index - 1].epochs,
+      result.epochs,
       32,
-      index === 0,
     );
 
     result.trainingMse = evaluateModel(
@@ -165,34 +167,57 @@ const trainingForAllEpochs = `
     result.testMse = evaluateModel(model, noisyTest, tensorTrainingData);
 
     if (result.testMse < lowestTestMse) {
-      bestFitWeights?.forEach((weight) => weight.dispose());
-      bestFitWeights = model.getWeights().map((weight) => weight.clone());
+      bestFitModel?.dispose();
+      bestFitModel = model;
       lowestTestMse = result.testMse;
       bestFitEpochs.value = result.epochs;
       trainingLoss.value = result.trainingMse;
       testLoss.value = result.testMse;
+    } else {
+      model.dispose();
     }
   }
 
-  if (!bestFitWeights) {
-    model.dispose();
+  if (!bestFitModel) {
     return;
   }
-
-  model.setWeights(bestFitWeights);
-  bestFitWeights.forEach((weight) => weight.dispose());
 
   const trainingContainer = noisyTrainDataContainer.value;
   const testContainer = noisyTestDataContainer.value;
 
   if (!trainingContainer || !testContainer) {
-    model.dispose();
+    bestFitModel.dispose();
     tensorTrainingData.inputs.dispose();
     tensorTrainingData.labels.dispose();
     tensorTrainingData.inputMax.dispose();
     tensorTrainingData.inputMin.dispose();
     return;
-  }`;
+  }
+
+  await testModel(
+    bestFitModel,
+    noisyTraining,
+    tensorTrainingData,
+    trainingContainer,
+  );
+
+  await testModel(bestFitModel, noisyTest, tensorTrainingData, testContainer);
+
+  bestFitModel.dispose();
+  tensorTrainingData.inputs.dispose();
+  tensorTrainingData.labels.dispose();
+  tensorTrainingData.inputMax.dispose();
+  tensorTrainingData.inputMin.dispose();
+
+  if (bestFitEpochs.value === undefined || testLoss.value === undefined) {
+    return;
+  }
+
+  isFinished.value = true;
+  emit("finished", {
+    epochs: bestFitEpochs.value,
+    testMse: testLoss.value,
+  });`;
 </script>
 
 <style scoped>

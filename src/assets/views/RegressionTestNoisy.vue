@@ -9,7 +9,7 @@
   <v-card class="parameter-card mt-4 pa-4">
     <v-card-title>Trainingsparameter</v-card-title>
     <v-card-text class="parameter-grid">
-      <span><strong>Getestete Epochen:</strong> 100 bis 1500</span>
+      <span><strong>Getestete Epochen:</strong> 100 bis 1200</span>
       <span><strong>Schrittweite:</strong> 100 Epochen</span>
       <span><strong>Best-Fit-Kriterium:</strong> kleinste Test-MSE</span>
       <span>
@@ -21,10 +21,10 @@
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Ein Modell wird zunächst für 100 Epochen trainiert und anschließend in
-      100er-Schritten bis 1500 Epochen weitertrainiert. Nach jeder Stufe werden
-      Trainings- und Test-MSE gemessen. Der Modellzustand mit der kleinsten
-      Test-MSE wird als Best Fit gesichert und für die Scatterplots verwendet.
+      Für jede untersuchte Epochenzahl wird ein neues Modell mit neuen
+      Startgewichten erstellt und ab Epoche 0 trainiert. Anschließend werden
+      Trainings- und Test-MSE gemessen. Das Modell mit der kleinsten Test-MSE
+      wird als Best Fit gesichert und für die Scatterplots verwendet.
     </v-card-text>
   </v-card>
   <v-card class="mt-4 pa-4">
@@ -186,12 +186,11 @@ type TrainingResult = {
 };
 
 const trainingResults = ref<TrainingResult[]>(
-  [
-    100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400,
-    1500,
-  ].map((epochs) => ({
+  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200].map(
+    (epochs) => ({
     epochs,
-  })),
+    }),
+  ),
 );
 
 const formatLoss = (loss: number): string => loss.toFixed(6);
@@ -248,21 +247,19 @@ const plot = async (): Promise<void> => {
   const { noisyTraining, noisyTest } = await getRegressionDataset();
 
   const tensorTrainingData = convertToTensor(noisyTraining);
-  const model = createModel(100);
-  let bestFitWeights: ReturnType<typeof model.getWeights> | undefined;
+  let bestFitModel: ReturnType<typeof createModel> | undefined;
   let lowestTestMse = Number.POSITIVE_INFINITY;
 
-  for (const [index, result] of trainingResults.value.entries()) {
+  for (const result of trainingResults.value) {
+    const model = createModel(100);
+
     await trainModel(
       model,
       tensorTrainingData.inputs,
       tensorTrainingData.labels,
-      index === 0
-        ? result.epochs
-        : result.epochs - trainingResults.value[index - 1].epochs,
+      result.epochs,
       32,
-      `R3 Training: bis ${result.epochs} Epochen`,
-      index === 0,
+      `R3 Training: ${result.epochs} Epochen`,
     );
 
     result.trainingMse = evaluateModel(
@@ -273,28 +270,26 @@ const plot = async (): Promise<void> => {
     result.testMse = evaluateModel(model, noisyTest, tensorTrainingData);
 
     if (result.testMse < lowestTestMse) {
-      bestFitWeights?.forEach((weight) => weight.dispose());
-      bestFitWeights = model.getWeights().map((weight) => weight.clone());
+      bestFitModel?.dispose();
+      bestFitModel = model;
       lowestTestMse = result.testMse;
       bestFitEpochs.value = result.epochs;
       trainingLoss.value = result.trainingMse;
       testLoss.value = result.testMse;
+    } else {
+      model.dispose();
     }
   }
 
-  if (!bestFitWeights) {
-    model.dispose();
+  if (!bestFitModel) {
     return;
   }
-
-  model.setWeights(bestFitWeights);
-  bestFitWeights.forEach((weight) => weight.dispose());
 
   const trainingContainer = noisyTrainDataContainer.value;
   const testContainer = noisyTestDataContainer.value;
 
   if (!trainingContainer || !testContainer) {
-    model.dispose();
+    bestFitModel.dispose();
     tensorTrainingData.inputs.dispose();
     tensorTrainingData.labels.dispose();
     tensorTrainingData.inputMax.dispose();
@@ -302,11 +297,16 @@ const plot = async (): Promise<void> => {
     return;
   }
 
-  await testModel(model, noisyTraining, tensorTrainingData, trainingContainer);
+  await testModel(
+    bestFitModel,
+    noisyTraining,
+    tensorTrainingData,
+    trainingContainer,
+  );
 
-  await testModel(model, noisyTest, tensorTrainingData, testContainer);
+  await testModel(bestFitModel, noisyTest, tensorTrainingData, testContainer);
 
-  model.dispose();
+  bestFitModel.dispose();
   tensorTrainingData.inputs.dispose();
   tensorTrainingData.labels.dispose();
   tensorTrainingData.inputMax.dispose();

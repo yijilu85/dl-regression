@@ -24,7 +24,11 @@
       Ein Modell wird kontinuierlich von 100 bis 1500 Epochen trainiert. Nach
       jeweils 100 Epochen werden Trainings- und Test-MSE gemessen. Der
       Modellzustand mit der kleinsten Test-MSE wird als Best Fit gesichert und
-      für die Scatterplots verwendet.
+      für die Scatterplots verwendet. Aufgrund der geringen Datenmenge von nur
+      50 verrauschten Trainingspunkten kommt es in den Experimenten gelegentlich
+      vor, dass innerhalb des untersuchten Bereichs kein Wendepunkt beobachtet
+      wird. In diesem Fall weist der letzte Messpunkt die kleinste Test-MSE auf
+      und wird daher rückblickend als Best Fit markiert.
     </v-card-text>
   </v-card>
   <v-card class="mt-4 pa-4">

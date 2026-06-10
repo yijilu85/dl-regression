@@ -9,12 +9,10 @@
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Das Modell wird auf unverrauschten Daten trainiert. Da Trainings- und
-      Testpunkte derselben rauschfreien Funktion folgen, fallen ihre Vorhersagen
-      ähnlich aus. Aus den Experimenten zeigte sich, dass Trainings-MSE und
-      Test-MSE überwiegend ab 300-400 Epochen eng beieinanderliegen. Größere
-      Abweichungen entstehen durch die zufällige Datenaufteilung etwa bei
-      Häufungen oder größeren Lücken in der Datenverteilung.
+      Ein Modell wird auf unverrauschten Daten kontinuierlich von 100 bis 500
+      Epochen trainiert. Nach jeweils 100 Epochen werden Trainings- und Test-MSE
+      protokolliert. Da Trainings- und Testpunkte derselben rauschfreien
+      Funktion folgen, sollten beide Werte ähnlich ausfallen.
     </v-card-text>
   </v-card>
   <v-card class="mt-4 pa-4">
@@ -229,18 +227,19 @@ const plot = async (): Promise<void> => {
   cleanTestData.value = cleanTest;
 
   const tensorTrainingDataOnTraining = convertToTensor(cleanTrainingData.value);
-  let finalModel: ReturnType<typeof createModel> | undefined;
+  const model = createModel(100);
 
   for (const [index, result] of trainingResults.value.entries()) {
-    const model = createModel(100);
-
     await trainModel(
       model,
       tensorTrainingDataOnTraining.inputs,
       tensorTrainingDataOnTraining.labels,
-      result.epochs,
+      index === 0
+        ? result.epochs
+        : result.epochs - trainingResults.value[index - 1].epochs,
       32,
-      `R2 Training: ${result.epochs} Epochen`,
+      "R2 Training",
+      index === 0,
     );
 
     result.trainingMse = evaluateModel(
@@ -254,36 +253,27 @@ const plot = async (): Promise<void> => {
       tensorTrainingDataOnTraining,
     );
 
-    const isLastResult = index === trainingResults.value.length - 1;
-
-    if (isLastResult) {
-      finalModel = model;
+    if (index === trainingResults.value.length - 1) {
       trainingMse.value = result.trainingMse;
       testMse.value = result.testMse;
-    } else {
-      model.dispose();
     }
   }
 
-  if (!finalModel) {
-    return;
-  }
-
   await testModel(
-    finalModel,
+    model,
     cleanTrainingData.value,
     tensorTrainingDataOnTraining,
     cleanTrainDataContainer.value,
   );
 
   await testModel(
-    finalModel,
+    model,
     cleanTestData.value,
     tensorTrainingDataOnTraining,
     cleanTestDataContainer.value,
   );
 
-  finalModel.dispose();
+  model.dispose();
   tensorTrainingDataOnTraining.inputs.dispose();
   tensorTrainingDataOnTraining.labels.dispose();
   tensorTrainingDataOnTraining.inputMax.dispose();

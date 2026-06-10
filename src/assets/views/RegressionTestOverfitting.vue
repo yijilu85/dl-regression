@@ -43,14 +43,15 @@
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Das zweite Modell wird zunächst für 100 Epochen und anschließend bis
-      {{ MAX_EPOCHS }} Epochen in 100er-Schritten trainiert. Nach allen
-      Durchgängen wird die kleinste Test-MSE als Best Fit markiert. Erst in den
-      darauffolgenden Stufen wird Overfitting gesucht: In zwei
-      aufeinanderfolgenden Übergängen müssen die Test-MSE und der Abstand
-      zwischen Test- und Trainings-MSE wachsen. Markiert wird die erste Stufe
-      dieser bestätigten Entwicklung. Die Auswertung erfolgt rückblickend und
-      beeinflusst das Training nicht.
+      Ein neues Modell wird bis {{ MAX_EPOCHS }} Epochen in 100er-Schritten
+      trainiert. Nach allen Durchgängen wird die kleinste Test-MSE als Best Fit
+      markiert. Erst in den darauffolgenden Stufen wird Overfitting gesucht:
+      Overfitting wird dann registriert, wenn in zwei aufeinanderfolgenden
+      Übergängen die Test-MSE und der Abstand zwischen Test- und Trainings-MSE
+      wachsen. Die erste so gefundene Stufe wird als Overfit-Schwelle
+      registriert und die zugehörigen Gewichte werden für den Scatterplot
+      verwendet. Die Auswertung erfolgt rückblickend und beeinflusst das
+      Training nicht.
     </v-card-text>
   </v-card>
   <v-card class="mt-4 pa-4">
@@ -282,6 +283,10 @@ const plot = async (): Promise<void> => {
   const { noisyTraining, noisyTest } = await getRegressionDataset();
 
   const model = createModel(100);
+  const modelWeightsByEpoch = new Map<
+    number,
+    ReturnType<typeof model.getWeights>
+  >();
   const tensorTrainingData = convertToTensor(noisyTraining);
 
   await trainModel(
@@ -301,8 +306,10 @@ const plot = async (): Promise<void> => {
   };
 
   trainingResults.value.push(startingResult);
-  trainingLoss.value = startingResult.trainingMse;
-  testLoss.value = startingResult.testMse;
+  modelWeightsByEpoch.set(
+    currentEpochs,
+    model.getWeights().map((weight) => weight.clone()),
+  );
 
   while (currentEpochs < MAX_EPOCHS) {
     await trainModel(
@@ -324,8 +331,10 @@ const plot = async (): Promise<void> => {
     };
 
     trainingResults.value.push(result);
-    trainingLoss.value = result.trainingMse;
-    testLoss.value = result.testMse;
+    modelWeightsByEpoch.set(
+      currentEpochs,
+      model.getWeights().map((weight) => weight.clone()),
+    );
   }
 
   const bestFitIndex = trainingResults.value.reduce(
@@ -354,7 +363,23 @@ const plot = async (): Promise<void> => {
     }
   }
 
-  scatterplotEpochs.value = currentEpochs;
+  const scatterplotResult =
+    trainingResults.value.find(
+      (result) => result.epochs === overfitEpochs.value,
+    ) ?? trainingResults.value[trainingResults.value.length - 1];
+  const scatterplotWeights = modelWeightsByEpoch.get(scatterplotResult.epochs);
+
+  if (scatterplotWeights) {
+    model.setWeights(scatterplotWeights);
+  }
+
+  for (const weights of modelWeightsByEpoch.values()) {
+    weights.forEach((weight) => weight.dispose());
+  }
+
+  scatterplotEpochs.value = scatterplotResult.epochs;
+  trainingLoss.value = scatterplotResult.trainingMse;
+  testLoss.value = scatterplotResult.testMse;
   searchFinished.value = true;
 
   const trainingContainer = noisyTrainDataContainer.value;

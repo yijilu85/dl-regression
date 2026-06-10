@@ -108,7 +108,6 @@
 </template>
 
 <script lang="ts" setup>
-import * as tf from "@tensorflow/tfjs";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -124,13 +123,13 @@ import {
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { Line } from "vue-chartjs";
 import {
-  shuffleAndGroupRandomly,
   convertToTensor,
   createModel,
   trainModel,
   testModel,
   evaluateModel,
 } from "../../services/helper/training";
+import { getRegressionDataset } from "../../services/helper/regressionData";
 
 import type { DataPoint } from "../../../types";
 
@@ -175,8 +174,6 @@ const scatterplotEpochs =
   trainingResults.value[trainingResults.value.length - 1].epochs;
 
 const formatLoss = (loss: number): string => loss.toFixed(6);
-const applyYFunction = (x: number): number =>
-  0.5 * (x + 0.8) * (x + 1.8) * (x - 0.2) * (x - 0.3) * (x - 1.9) + 1;
 
 const mseChartData = computed<ChartData<"line">>(() => ({
   labels: trainingResults.value.map((result) => result.epochs),
@@ -227,19 +224,10 @@ const plot = async (): Promise<void> => {
     return;
   }
 
-  const xTensor = tf.randomUniform([100], -2, 2);
-  const xValues = Array.from(await xTensor.data());
-  xTensor.dispose();
+  const { cleanTraining, cleanTest } = await getRegressionDataset();
 
-  const values = xValues.map((x) => ({
-    x,
-    y: applyYFunction(x),
-  }));
-
-  const shuffled = shuffleAndGroupRandomly(values);
-
-  cleanTrainingData.value = shuffled.group1;
-  cleanTestData.value = shuffled.group2;
+  cleanTrainingData.value = cleanTraining;
+  cleanTestData.value = cleanTest;
 
   const tensorTrainingDataOnTraining = convertToTensor(cleanTrainingData.value);
   let finalModel: ReturnType<typeof createModel> | undefined;

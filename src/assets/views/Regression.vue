@@ -17,10 +17,7 @@
     class="mb-6"
   />
 
-  <RegressionTestOverfitting
-    :active="completedStep === 3"
-    class="mb-6"
-  />
+  <RegressionTestOverfitting :active="completedStep === 3" class="mb-6" />
 </template>
 
 <script lang="ts" setup>

@@ -1,8 +1,11 @@
 <template>
   <h2 class="mt-8">
     R4: Overfitting
+    <span v-if="bestFitEpochs !== undefined">
+      – Best Fit bei {{ bestFitEpochs }} Epochen
+    </span>
     <span v-if="overfitEpochs !== undefined">
-      ab {{ overfitEpochs }} Epochen
+      – Overfitting ab {{ overfitEpochs }} Epochen
     </span>
   </h2>
 
@@ -14,10 +17,16 @@
         {{ START_EPOCHS }} Epochen
       </span>
       <span><strong>Schrittweite:</strong> 100 Epochen</span>
-      <span><strong>Maximale Suche:</strong> {{ MAX_EPOCHS }} Epochen</span>
       <span>
-        <strong>Nach Overfitting:</strong>
-        {{ POST_OVERFIT_STEPS }} weitere Schritte
+        <strong>Trainingsende:</strong>
+        {{ MAX_EPOCHS }} Epochen
+      </span>
+      <span>
+        <strong>Best Fit:</strong>
+        <template v-if="bestFitEpochs !== undefined">
+          {{ bestFitEpochs }} Epochen
+        </template>
+        <v-skeleton-loader v-else type="text" class="value-skeleton" />
       </span>
       <span>
         <strong>Overfitting ab:</strong>
@@ -27,30 +36,29 @@
         <v-skeleton-loader v-else type="text" class="value-skeleton" />
       </span>
       <span>
-        <strong>Abbruchkriterium:</strong> Trainings-MSE ≤ 50 % der Test-MSE in
-        zwei aufeinanderfolgenden Stufen
+        <strong>Overfitting-Kriterium:</strong> Trainings-MSE sinkt, Test-MSE
+        steigt und der Abstand wächst in zwei aufeinanderfolgenden Übergängen
       </span>
     </v-card-text>
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Ein zweites Modell ebenso zunächst für 100 Epochen trainiert und
-      anschließend in 100er-Epochenschritten weitertrainiert. Overfitting wird
-      angenommen, sobald die Trainings-MSE in zwei aufeinanderfolgenden Stufen
-      mindestens 50 % kleiner als die Test-MSE ausfällt. Markiert wird die erste
-      dieser beiden Stufen. Nach der Bestätigung wird das Modell noch drei
-      weitere Schritte trainiert, um die weitere Entwicklung beobachten zu
-      können. Der zunehmende Abstand zeigt, dass das Modell die Trainingsdaten
-      und ihr Rauschen immer genauer abbildet, während sich die Generalisierung
-      auf unbekannte Daten nicht entsprechend verbessert.
+      Das zweite Modell wird zunächst für 100 Epochen und anschließend bis 1500
+      Epochen in 100er-Schritten trainiert. Nach allen Durchgängen wird die
+      kleinste Test-MSE als Best Fit markiert. Erst in den darauffolgenden
+      Stufen wird Overfitting gesucht: In zwei aufeinanderfolgenden Übergängen
+      muss die Trainings-MSE sinken, die Test-MSE steigen und der Abstand
+      zwischen Test- und Trainings-MSE wachsen. Markiert wird die erste Stufe
+      dieser bestätigten Entwicklung. Die Auswertung erfolgt rückblickend und
+      beeinflusst das Training nicht.
     </v-card-text>
   </v-card>
 
   <v-card class="mt-4 pa-4">
     <v-card-title>R4: Suche ab {{ START_EPOCHS }} Epochen</v-card-title>
     <v-card-subtitle>
-      Overfitting: Trainings-MSE in zwei aufeinanderfolgenden Stufen mindestens
-      50 % kleiner als Test-MSE.
+      Overfitting: zwei aufeinanderfolgende Übergänge mit sinkender
+      Trainings-MSE, steigender Test-MSE und wachsendem Abstand.
     </v-card-subtitle>
     <v-table v-if="active || searchFinished">
       <thead>
@@ -69,7 +77,10 @@
         <tr
           v-for="result in trainingResults"
           :key="result.epochs"
-          :class="{ 'overfit-result': result.epochs === overfitEpochs }"
+          :class="{
+            'best-result': result.epochs === bestFitEpochs,
+            'overfit-result': result.epochs === overfitEpochs,
+          }"
         >
           <td>{{ result.epochs }}</td>
           <td>{{ formatLoss(result.trainingMse) }}</td>
@@ -81,8 +92,8 @@
       <v-skeleton-loader type="table-row-divider@4" />
     </v-card-text>
     <p v-if="searchFinished && overfitEpochs === undefined" class="mt-4">
-      Bis {{ MAX_EPOCHS }} Epochen wurde das festgelegte Overfitting-Kriterium
-      nicht erreicht.
+      Nach dem Best Fit wurde bis {{ MAX_EPOCHS }} Epochen kein bestätigtes
+      Overfitting gefunden.
     </p>
   </v-card>
 
@@ -192,6 +203,7 @@ const noisyTrainDataContainer = ref<HTMLDivElement | null>(null);
 const noisyTestDataContainer = ref<HTMLDivElement | null>(null);
 const trainingLoss = ref<number>();
 const testLoss = ref<number>();
+const bestFitEpochs = ref<number>();
 const overfitEpochs = ref<number>();
 const scatterplotEpochs = ref<number>();
 const searchFinished = ref(false);
@@ -200,9 +212,7 @@ const hasStarted = ref(false);
 
 const EPOCH_STEP = 100;
 const START_EPOCHS = 100;
-const MAX_EPOCHS = 5000;
-const MINIMUM_MSE_GAP = 0.5;
-const POST_OVERFIT_STEPS = 3;
+const MAX_EPOCHS = 1500;
 
 type TrainingResult = {
   epochs: number;
@@ -212,8 +222,19 @@ type TrainingResult = {
 
 const formatLoss = (loss: number): string => loss.toFixed(6);
 
-const isOverfitting = (result: TrainingResult): boolean =>
-  result.trainingMse <= result.testMse * (1 - MINIMUM_MSE_GAP);
+const hasOverfittingTrend = (
+  previous: TrainingResult,
+  current: TrainingResult,
+): boolean => {
+  const previousGap = previous.testMse - previous.trainingMse;
+  const currentGap = current.testMse - current.trainingMse;
+
+  return (
+    current.trainingMse < previous.trainingMse &&
+    current.testMse > previous.testMse &&
+    currentGap > previousGap
+  );
+};
 
 const mseChartData = computed<ChartData<"line">>(() => ({
   labels: trainingResults.value.map((result) => result.epochs),
@@ -289,16 +310,7 @@ const plot = async (): Promise<void> => {
   trainingLoss.value = startingResult.trainingMse;
   testLoss.value = startingResult.testMse;
 
-  let remainingPostOverfitSteps: number | undefined;
-  let overfitCandidateEpochs = isOverfitting(startingResult)
-    ? currentEpochs
-    : undefined;
-
-  while (
-    overfitEpochs.value !== undefined
-      ? (remainingPostOverfitSteps ?? 0) > 0
-      : currentEpochs < MAX_EPOCHS
-  ) {
+  while (currentEpochs < MAX_EPOCHS) {
     await trainModel(
       model,
       tensorTrainingData.inputs,
@@ -320,20 +332,31 @@ const plot = async (): Promise<void> => {
     trainingResults.value.push(result);
     trainingLoss.value = result.trainingMse;
     testLoss.value = result.testMse;
+  }
 
-    if (overfitEpochs.value === undefined) {
-      if (isOverfitting(result)) {
-        if (overfitCandidateEpochs !== undefined) {
-          overfitEpochs.value = overfitCandidateEpochs;
-          remainingPostOverfitSteps = POST_OVERFIT_STEPS;
-        } else {
-          overfitCandidateEpochs = currentEpochs;
-        }
-      } else {
-        overfitCandidateEpochs = undefined;
-      }
-    } else if (remainingPostOverfitSteps !== undefined) {
-      remainingPostOverfitSteps -= 1;
+  const bestFitIndex = trainingResults.value.reduce(
+    (bestIndex, result, index, results) =>
+      result.testMse < results[bestIndex].testMse ? index : bestIndex,
+    0,
+  );
+
+  bestFitEpochs.value = trainingResults.value[bestFitIndex].epochs;
+
+  for (
+    let index = bestFitIndex;
+    index < trainingResults.value.length - 2;
+    index += 1
+  ) {
+    const previousResult = trainingResults.value[index];
+    const firstResult = trainingResults.value[index + 1];
+    const secondResult = trainingResults.value[index + 2];
+
+    if (
+      hasOverfittingTrend(previousResult, firstResult) &&
+      hasOverfittingTrend(firstResult, secondResult)
+    ) {
+      overfitEpochs.value = firstResult.epochs;
+      break;
     }
   }
 
@@ -422,6 +445,11 @@ watch(() => props.active, start);
 .mse-chart-container,
 .mse-chart-skeleton {
   height: 400px;
+}
+
+.best-result {
+  background: rgba(var(--v-theme-success), 0.12);
+  font-weight: 600;
 }
 
 .overfit-result {

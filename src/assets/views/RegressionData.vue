@@ -55,16 +55,14 @@
 </template>
 
 <script lang="ts" setup>
-import * as tf from "@tensorflow/tfjs";
 import * as tfvis from "@tensorflow/tfjs-vis";
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import {
-  shuffleAndGroupRandomly,
   convertToTensor,
   createModel,
   trainModel,
-  addGaussianNoise,
 } from "../../services/helper/training";
+import { getRegressionDataset } from "../../services/helper/regressionData";
 
 import type { DataPoint } from "../../../types";
 
@@ -76,8 +74,6 @@ const emit = defineEmits<{
   finished: [];
 }>();
 
-const NOISE_VARIANCE = 0.05;
-
 const cleanChartContainer = ref<HTMLDivElement | null>(null);
 const noisyChartContainer = ref<HTMLDivElement | null>(null);
 
@@ -87,35 +83,18 @@ const noisyTestData = ref<DataPoint[]>([]);
 const noisyTrainingData = ref<DataPoint[]>([]);
 const hasStarted = ref(false);
 
-const applyYFunction = (x: number): number =>
-  0.5 * (x + 0.8) * (x + 1.8) * (x - 0.2) * (x - 0.3) * (x - 1.9) + 1;
-
 const plot = async (): Promise<void> => {
   if (!cleanChartContainer.value || !noisyChartContainer.value) {
     return;
   }
 
-  const xTensor = tf.randomUniform([100], -2, 2);
-  const xValues = Array.from(await xTensor.data());
-  xTensor.dispose();
+  const { cleanTraining, cleanTest, noisyTraining, noisyTest } =
+    await getRegressionDataset();
 
-  const values = xValues.map((x) => ({
-    x,
-    y: applyYFunction(x),
-  }));
-
-  const shuffled = shuffleAndGroupRandomly(values);
-
-  cleanTrainingData.value = shuffled.group1;
-  cleanTestData.value = shuffled.group2;
-  noisyTrainingData.value = await addGaussianNoise(
-    cleanTrainingData.value,
-    NOISE_VARIANCE,
-  );
-  noisyTestData.value = await addGaussianNoise(
-    cleanTestData.value,
-    NOISE_VARIANCE,
-  );
+  cleanTrainingData.value = cleanTraining;
+  cleanTestData.value = cleanTest;
+  noisyTrainingData.value = noisyTraining;
+  noisyTestData.value = noisyTest;
 
   const model = createModel(100);
   const tensorTrainingData = convertToTensor(cleanTrainingData.value);

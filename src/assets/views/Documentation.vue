@@ -135,7 +135,6 @@ const rawTemplate = `
 
   <RegressionTestOverfitting
     :active="completedStep === 3"
-    :best-fit-epochs="bestFitEpochs"
     class="mb-6"
   />
 </template>`;

@@ -19,7 +19,6 @@
 
   <RegressionTestOverfitting
     :active="completedStep === 3"
-    :best-fit-epochs="bestFitEpochs"
     class="mb-6"
   />
 </template>
@@ -41,13 +40,7 @@ const RegressionTestOverfitting = defineAsyncComponent(
 );
 
 const completedStep = ref(0);
-const bestFitEpochs = ref<number>();
-
-const handleBestFitFinished = (result: {
-  epochs: number;
-  testMse: number;
-}): void => {
-  bestFitEpochs.value = result.epochs;
+const handleBestFitFinished = (): void => {
   completedStep.value = 3;
 };
 </script>

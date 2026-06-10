@@ -11,10 +11,7 @@
     <v-card-text class="parameter-grid">
       <span>
         <strong>Start:</strong>
-        <template v-if="bestFitEpochs !== undefined">
-          {{ bestFitEpochs }} Epochen
-        </template>
-        <v-skeleton-loader v-else type="text" class="value-skeleton" />
+        {{ START_EPOCHS }} Epochen
       </span>
       <span><strong>Schrittweite:</strong> 100 Epochen</span>
       <span><strong>Maximale Suche:</strong> {{ MAX_EPOCHS }} Epochen</span>
@@ -30,16 +27,18 @@
         <v-skeleton-loader v-else type="text" class="value-skeleton" />
       </span>
       <span>
-        <strong>Abbruchkriterium:</strong> Trainings-MSE ≤ 70 % der Test-MSE
+        <strong>Abbruchkriterium:</strong> Trainings-MSE ≤ 50 % der Test-MSE in
+        zwei aufeinanderfolgenden Stufen
       </span>
     </v-card-text>
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Ausgehend von der in R3 bestimmten Epochenzahl für Best Fit wird dasselbe
-      Modell in 100er-Epochenschritten weitertrainiert. Overfitting wird
-      angenommen, sobald die Trainings-MSE mindestens 30 % kleiner als die
-      Test-MSE ausfällt. Nach der ersten Erkennung wird das Modell noch vier
+      Ein zweites Modell ebenso zunächst für 100 Epochen trainiert und
+      anschließend in 100er-Epochenschritten weitertrainiert. Overfitting wird
+      angenommen, sobald die Trainings-MSE in zwei aufeinanderfolgenden Stufen
+      mindestens 50 % kleiner als die Test-MSE ausfällt. Markiert wird die erste
+      dieser beiden Stufen. Nach der Bestätigung wird das Modell noch drei
       weitere Schritte trainiert, um die weitere Entwicklung beobachten zu
       können. Der zunehmende Abstand zeigt, dass das Modell die Trainingsdaten
       und ihr Rauschen immer genauer abbildet, während sich die Generalisierung
@@ -48,15 +47,10 @@
   </v-card>
 
   <v-card class="mt-4 pa-4">
-    <v-card-title>
-      R4: Suche
-      <template v-if="bestFitEpochs !== undefined">
-        ab {{ bestFitEpochs }} Epochen
-      </template>
-      <v-skeleton-loader v-else type="text" class="headline-skeleton" />
-    </v-card-title>
+    <v-card-title>R4: Suche ab {{ START_EPOCHS }} Epochen</v-card-title>
     <v-card-subtitle>
-      Overfitting: Trainings-MSE mindestens 30 % kleiner als Test-MSE.
+      Overfitting: Trainings-MSE in zwei aufeinanderfolgenden Stufen mindestens
+      50 % kleiner als Test-MSE.
     </v-card-subtitle>
     <v-table v-if="active || searchFinished">
       <thead>
@@ -192,7 +186,6 @@ ChartJS.register(
 
 const props = defineProps<{
   active: boolean;
-  bestFitEpochs?: number;
 }>();
 
 const noisyTrainDataContainer = ref<HTMLDivElement | null>(null);
@@ -206,9 +199,10 @@ const trainingResults = ref<TrainingResult[]>([]);
 const hasStarted = ref(false);
 
 const EPOCH_STEP = 100;
+const START_EPOCHS = 100;
 const MAX_EPOCHS = 5000;
-const MINIMUM_MSE_GAP = 0.3;
-const POST_OVERFIT_STEPS = 4;
+const MINIMUM_MSE_GAP = 0.5;
+const POST_OVERFIT_STEPS = 3;
 
 type TrainingResult = {
   epochs: number;
@@ -266,11 +260,7 @@ const mseChartOptions: ChartOptions<"line"> = {
 };
 
 const plot = async (): Promise<void> => {
-  if (
-    props.bestFitEpochs === undefined ||
-    !noisyTrainDataContainer.value ||
-    !noisyTestDataContainer.value
-  ) {
+  if (!noisyTrainDataContainer.value || !noisyTestDataContainer.value) {
     return;
   }
 
@@ -283,12 +273,12 @@ const plot = async (): Promise<void> => {
     model,
     tensorTrainingData.inputs,
     tensorTrainingData.labels,
-    props.bestFitEpochs,
+    START_EPOCHS,
     32,
     "R4 Overfit Training",
   );
 
-  let currentEpochs = props.bestFitEpochs;
+  let currentEpochs = START_EPOCHS;
   const startingResult: TrainingResult = {
     epochs: currentEpochs,
     trainingMse: evaluateModel(model, noisyTraining, tensorTrainingData),
@@ -300,11 +290,9 @@ const plot = async (): Promise<void> => {
   testLoss.value = startingResult.testMse;
 
   let remainingPostOverfitSteps: number | undefined;
-
-  if (isOverfitting(startingResult)) {
-    overfitEpochs.value = currentEpochs;
-    remainingPostOverfitSteps = POST_OVERFIT_STEPS;
-  }
+  let overfitCandidateEpochs = isOverfitting(startingResult)
+    ? currentEpochs
+    : undefined;
 
   while (
     overfitEpochs.value !== undefined
@@ -333,9 +321,17 @@ const plot = async (): Promise<void> => {
     trainingLoss.value = result.trainingMse;
     testLoss.value = result.testMse;
 
-    if (overfitEpochs.value === undefined && isOverfitting(result)) {
-      overfitEpochs.value = currentEpochs;
-      remainingPostOverfitSteps = POST_OVERFIT_STEPS;
+    if (overfitEpochs.value === undefined) {
+      if (isOverfitting(result)) {
+        if (overfitCandidateEpochs !== undefined) {
+          overfitEpochs.value = overfitCandidateEpochs;
+          remainingPostOverfitSteps = POST_OVERFIT_STEPS;
+        } else {
+          overfitCandidateEpochs = currentEpochs;
+        }
+      } else {
+        overfitCandidateEpochs = undefined;
+      }
     } else if (remainingPostOverfitSteps !== undefined) {
       remainingPostOverfitSteps -= 1;
     }
@@ -367,7 +363,7 @@ const plot = async (): Promise<void> => {
   tensorTrainingData.inputMin.dispose();
 };
 const start = async (): Promise<void> => {
-  if (!props.active || props.bestFitEpochs === undefined || hasStarted.value) {
+  if (!props.active || hasStarted.value) {
     return;
   }
 
@@ -377,7 +373,7 @@ const start = async (): Promise<void> => {
 };
 
 onMounted(start);
-watch([() => props.active, () => props.bestFitEpochs], start);
+watch(() => props.active, start);
 </script>
 
 <style scoped>

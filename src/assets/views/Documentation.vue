@@ -2,7 +2,7 @@
   <div class="documentation-view">
     <article class="mb-8">
       <h2 class="text-2xl font-bold mb-4">
-        Deep Learning EA 1: Bilderkennung mit ml5
+        Deep Learning EA 2: Regression mit Tensorflow
       </h2>
       <p>Yi-Ji Lu<br />BHT Berlin<br />Matrikelnummer: 929655</p>
     </article>
@@ -12,10 +12,10 @@
         <li>
           Frontend Framework:
           <a
-          href="https://vuejs.org/"
-          target="_blank"
-          class="text-primary underline"
-          >Vue.js</a
+            href="https://vuejs.org/"
+            target="_blank"
+            class="text-primary underline"
+            >Vue.js</a
           >
         </li>
         <li>
@@ -37,12 +37,12 @@
           >
         </li>
         <li>
-          Image Classification Framework:
+          Machine Learning Framework
           <a
-            href="https://ml5js.org/"
+            href="https://www.tensorflow.org/js"
             target="_blank"
             class="text-primary underline"
-            >ml5.js</a
+            >Tensorflow js</a
           >
         </li>
         <li>
@@ -65,120 +65,116 @@
         </li>
       </ul>
       <p>
-        Die Webanwendung wurde mit Vue 3, TypeScript und mit Vite
-        als Build-Tool umgesetut. Für die Oberfläche kommen
-        Vuetify-Komponenten sowie Tailwind-CSS-Klassen für Layout und Styling.
-        Die Bildklassifikation basiert auf ml5.js und dem vortrainierten
-        MobileNet-Modell. Die Visulasierung der Daten erfolgt mit
-        chart.js.  
+        Die Webanwendung wurde mit Vue 3, TypeScript und mit Vite als Build-Tool
+        umgesetut. Für die Oberfläche kommen Vuetify-Komponenten sowie
+        Tailwind-CSS-Klassen für Layout und Styling. Das Training des Modells
+        erfolgt in Tensorflow.js. Das Plotten Graphen erfolgt mit Tensorflow
+        sowie chart.js.
+      </p>
+
       <p>
         Das Hosting und Deployment erfolgt über Github Pages, die CI/CD-Pipeline
         wird mit Github Actions umgesetzt.
       </p>
-        Alle verwendeten Bilder stammen von
-        <a
-          href="https://unsplash.com/"
-          target="_blank"
-          class="text-primary underline"
-          >unsplash</a
-        >.
-      </p>
-
     </article>
     <article>
       <h2 class="text-2xl font-bold mb-4">Implementation</h2>
       <p>
-        Die Anwendung ist komponentenbasiert aufgebaut. Beim erstmaligen
-        Pageload wird ein ml5 <code>Classifier</code> Objekt initiiert und
-        preloaded. In einer zentralen Datei werden Bildgruppen mit ihren
-        Attributen definiert.
+        Die Anwendung ist komponentenbasiert aufgebaut. Beim Pageload werden die
+        4 Szenarien als eigene Komponenten registriert. Die Generierung der
+        Daten, die Erstellung des Modells, Training und Auswertung der Daten
+        erfolgt in shared helpers mit variablen Parametern.
       </p>
-      <pre class="doc-code-block"><strong>Bildgruppen-Definition</strong>
-        {{ rawDefinition }}
-      </pre>
-      <p>
-        Die Anwendung erstellt dynamisch für die definierten Bildgruppen
-        einzelne Einzelbild-Container, die jeweils einen
-        <code>Classify-Request</code> an ml5 senden. Die Antworten mit dem
-        Klassifikationsresultat werden für jedes Bild als Balkendiagramme anzeigt.
-        Zusätzlich können eigene Bilder per Drag-and-drop hochgeladen und im
-        gleichen Ablauf klassifiziert werden.
-      </p>
-      <pre class="doc-code-block"> <strong
-          >Dynamisches Rendering der Bildgruppen und ihrer Bildelemente</strong
-        >
+      <pre
+        class="doc-code-block"
+      ><strong>Dynamisches Rendering der 4 Szenarien</strong>
        {{ rawTemplate }}
       </pre>
       <p>
-        Um die Performance zu verbessern, werden erfolgt der
-        <code>Classify Request</code> an ml5 für ein Bild erst lazy, sobald sich
-        das Bild im Viewport befindet.
+        Dabei werden die Daten einer Komponente erst geladen, sofern die
+        vorangegangene fertig berechnet ist. Die Anwendung der
+        Trainingsparameter und die Auswertung in Form von Tabellen und Charts
+        erfolgt dynamisch. Um zu signalisieren, dass eine Berechnung im Gange
+        ist, wird das Layout der Elemente so lange mit Skeletons angedeutet, bis
+        die Berechnung abgeschlossen ist.
       </p>
-      <p>
-        Für ein angenehmes Handling im Interface wurde eine Funktionalität
-        eingebaut, um Bild-Elemente aus ihrer Gruppe zu entfernen und die Gruppe
-        auf den Originalzustand wieder zu resetten.
-      </p>
+      <pre
+        class="doc-code-block"
+      ><strong>Definition der Epoch-Ranges in R3</strong>
+       {{ epochRange }}
+      </pre>
+      <pre
+        class="doc-code-block"
+      ><strong>Training der Epoch-Ranges in R3</strong>
+       {{ trainingForAllEpochs }}
+      </pre>
     </article>
   </div>
 </template>
 
 <script lang="ts" setup>
-const rawDefinition = `
-export const setupImageGroups = [
-  {
-    name: "Vorauswahl korrekter Klassifikationen",
-    labelCorrect: true,
-    images: [
-      imgPath("daisy.jpg"),
-      imgPath("tiger-cat.jpg"),
-      imgPath("ant.jpg"),
-    ],
-    order: 1,
-    enableUpload: false,
-  },
-  {
-    name: "Vorauswahl falscher Klassifikationen",
-    labelCorrect: false,
-    images: [imgPath("book.jpg"), imgPath("cactus.jpg"), imgPath("baby.jpg")],
-    order: 2,
-    enableUpload: false,
-  },
-  {
-    name: "Klassifikationen von Uploads",
-    labelCorrect: undefined,
-    images: [],
-    order: 3,
-    enableUpload: true,
-  },
-];`;
 const rawTemplate = `
-  <SingleImage
-    v-for="(item, index) in visibleImages"
-    :imgSrc="item"
-    :correct="groupData.labelCorrect"
-    class="mt-4 mb-4 fade-item"
-    @remove="handleRemoveImage(index, visibleImages)"
-    :class="{ removing: removingIndex === index }"
+  <template>
+  <RegressionData
+    :active="completedStep === 0"
+    @finished="completedStep = 1"
+    class="mb-6"
   />
-  <article v-if="groupData.discussion" class="mt-4 mb-4">
-    <p><strong>Diskussion:</strong> {{ groupData.discussion }}</p>
-  </article>
-  <SingleImage
-    v-for="(item, uploadedIndex) in uploadedFilePreviews"
-    :key="item.url"
-    class="preview-item mt-4 mb-4 fade-item"
-    @remove="handleRemoveUploadedImage(uploadedIndex, uploadedFilePreviews)"
-    :class="{ removing: removingUploadedIndex === uploadedIndex }"
-    :imgSrc="item.url"
-    :correct="undefined"
+
+  <RegressionTestClean
+    :active="completedStep === 1"
+    @finished="completedStep = 2"
+    class="mb-6"
   />
-  <FileUpload
-    class="mt-4 mb-8"
-    v-if="groupData.enableUpload"
-    @file-selected="handleFilesSelected($event)"
-  >
-  </FileUpload>`;
+
+  <RegressionTestNoisy
+    :active="completedStep === 2"
+    @finished="handleBestFitFinished"
+    class="mb-6"
+  />
+
+  <RegressionTestOverfitting
+    :active="completedStep === 3"
+    :best-fit-epochs="bestFitEpochs"
+    class="mb-6"
+  />
+</template>`;
+const epochRange = `
+  const trainingResults = ref<TrainingResult[]>(
+  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map((epochs) => ({
+    epochs,
+  })),
+);`;
+const trainingForAllEpochs = `
+  for (const result of trainingResults.value) {
+    const model = createModel(100);
+
+    await trainModel(
+      model,
+      tensorTrainingData.inputs,
+      tensorTrainingData.labels,
+      result.epochs,
+      32,
+    );
+
+    result.trainingMse = evaluateModel(
+      model,
+      noisyTraining,
+      tensorTrainingData,
+    );
+    result.testMse = evaluateModel(model, noisyTest, tensorTrainingData);
+
+    if (result.testMse < lowestTestMse) {
+      bestFitModel?.dispose();
+      bestFitModel = model;
+      lowestTestMse = result.testMse;
+      bestFitEpochs.value = result.epochs;
+      trainingLoss.value = result.trainingMse;
+      testLoss.value = result.testMse;
+    } else {
+      model.dispose();
+    }
+  }`;
 </script>
 
 <style scoped>

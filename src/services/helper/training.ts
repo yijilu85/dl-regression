@@ -5,8 +5,6 @@ import type { DataPoint } from "../../../types";
 export type NormalizationData = {
   inputMax: tf.Scalar;
   inputMin: tf.Scalar;
-  labelMax: tf.Scalar;
-  labelMin: tf.Scalar;
 };
 
 export type TensorData = NormalizationData & {
@@ -67,25 +65,16 @@ export const convertToTensor = (
       normalizationData?.inputMax ?? (inputTensor.max() as tf.Scalar);
     const inputMin =
       normalizationData?.inputMin ?? (inputTensor.min() as tf.Scalar);
-    const labelMax =
-      normalizationData?.labelMax ?? (labelTensor.max() as tf.Scalar);
-    const labelMin =
-      normalizationData?.labelMin ?? (labelTensor.min() as tf.Scalar);
 
     const normalizedInputs = inputTensor
       .sub(inputMin)
       .div(inputMax.sub(inputMin)) as tf.Tensor2D;
-    const normalizedLabels = labelTensor
-      .sub(labelMin)
-      .div(labelMax.sub(labelMin)) as tf.Tensor2D;
 
     return {
       inputs: normalizedInputs,
-      labels: normalizedLabels,
+      labels: labelTensor,
       inputMax,
       inputMin,
-      labelMax,
-      labelMin,
     };
   });
 };
@@ -121,18 +110,47 @@ export const trainModel = async (
     });
   }
 
+  const visor = tfvis.visor();
+  const surface = visor.surface({
+    name: chartName,
+    tab: "Training",
+    styles: { height: "350px" },
+  });
+  visor.setActiveTab("Training");
+
+  const moveSurfaceToTop = () => {
+    const surfacesContainer = surface.container.parentElement;
+
+    if (surfacesContainer?.firstElementChild !== surface.container) {
+      surfacesContainer?.prepend(surface.container);
+    }
+  };
+
+  const fitCallbacks = tfvis.show.fitCallbacks(surface, ["loss"], {
+    height: 200,
+    callbacks: ["onEpochEnd"],
+  });
+
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      moveSurfaceToTop();
+      resolve();
+    });
+  });
+
   return model.fit(inputs, labels, {
-    batchSize: batchSize,
+    batchSize,
     epochs,
     shuffle: true,
-    callbacks: tfvis.show.fitCallbacks(
-      { name: chartName },
-      ["loss"],
-      {
-        height: 300,
-        callbacks: ["onEpochEnd"],
+    callbacks: {
+      onEpochEnd: async (epoch, logs) => {
+        if (logs) {
+          await fitCallbacks.onEpochEnd(epoch, logs);
+        }
+
+        moveSurfaceToTop();
       },
-    ),
+    },
   });
 };
 
@@ -146,20 +164,15 @@ export const testModel = (
     return Promise.resolve();
   }
 
-  const { inputMax, inputMin, labelMin, labelMax } = normalizationData;
+  const { inputMax, inputMin } = normalizationData;
 
   const [xs, preds] = tf.tidy(() => {
     const xsNorm = tf.linspace(0, 1, 100);
-    const predictions = model.predict(
-      xsNorm.reshape([100, 1]),
-    ) as tf.Tensor2D;
+    const predictions = model.predict(xsNorm.reshape([100, 1])) as tf.Tensor2D;
 
     const unNormXs = xsNorm.mul(inputMax.sub(inputMin)).add(inputMin);
 
-    const unNormPreds = predictions.mul(labelMax.sub(labelMin)).add(labelMin);
-
-    // Un-normalize the data
-    return [unNormXs.dataSync(), unNormPreds.dataSync()];
+    return [unNormXs.dataSync(), predictions.dataSync()];
   });
 
   const predictedPoints = Array.from(xs).map((val, i) => {
@@ -200,12 +213,7 @@ export const evaluateModel = (
       .div(
         normalizationData.inputMax.sub(normalizationData.inputMin),
       ) as tf.Tensor2D;
-    const normalizedPredictions = model.predict(
-      normalizedInputs,
-    ) as tf.Tensor2D;
-    const predictions = normalizedPredictions
-      .mul(normalizationData.labelMax.sub(normalizationData.labelMin))
-      .add(normalizationData.labelMin);
+    const predictions = model.predict(normalizedInputs) as tf.Tensor2D;
     const labels = tf.tensor2d(
       data.map((point) => point.y),
       [data.length, 1],

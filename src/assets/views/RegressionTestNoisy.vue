@@ -9,7 +9,7 @@
   <v-card class="parameter-card mt-4 pa-4">
     <v-card-title>Trainingsparameter</v-card-title>
     <v-card-text class="parameter-grid">
-      <span><strong>Getestete Epochen:</strong> 100 bis 1200</span>
+      <span><strong>Getestete Epochen:</strong> 100 bis 1500</span>
       <span><strong>Schrittweite:</strong> 100 Epochen</span>
       <span><strong>Best-Fit-Kriterium:</strong> kleinste Test-MSE</span>
       <span>
@@ -21,7 +21,7 @@
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Ein Modell wird kontinuierlich von 100 bis 1200 Epochen trainiert. Nach
+      Ein Modell wird kontinuierlich von 100 bis 1500 Epochen trainiert. Nach
       jeweils 100 Epochen werden Trainings- und Test-MSE gemessen. Der
       Modellzustand mit der kleinsten Test-MSE wird als Best Fit gesichert und
       für die Scatterplots verwendet.
@@ -43,6 +43,7 @@
           <th>Epochen</th>
           <th>Trainings-MSE</th>
           <th>Test-MSE</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>
@@ -65,6 +66,15 @@
               {{ formatLoss(result.testMse) }}
             </span>
             <v-skeleton-loader v-else type="text" class="table-skeleton" />
+          </td>
+          <td>
+            <v-chip
+              v-if="isFinished && result.epochs === bestFitEpochs"
+              color="success"
+              size="small"
+            >
+              Best Fit
+            </v-chip>
           </td>
         </tr>
       </tbody>
@@ -186,11 +196,12 @@ type TrainingResult = {
 };
 
 const trainingResults = ref<TrainingResult[]>(
-  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200].map(
-    (epochs) => ({
-      epochs,
-    }),
-  ),
+  [
+    100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400,
+    1500,
+  ].map((epochs) => ({
+    epochs,
+  })),
 );
 
 const formatLoss = (loss: number): string => loss.toFixed(6);
@@ -211,6 +222,19 @@ const mseChartData = computed<ChartData<"line">>(() => ({
       borderColor: "rgb(255, 99, 132)",
       backgroundColor: "rgba(255, 99, 132, 0.3)",
       tension: 0.2,
+    },
+    {
+      label: "Best Fit",
+      data: trainingResults.value.map((result) =>
+        isFinished.value && result.epochs === bestFitEpochs.value
+          ? (result.testMse ?? null)
+          : null,
+      ),
+      borderColor: "rgb(76, 175, 80)",
+      backgroundColor: "rgb(76, 175, 80)",
+      pointRadius: 7,
+      pointHoverRadius: 9,
+      showLine: false,
     },
   ],
 }));
@@ -301,12 +325,7 @@ const plot = async (): Promise<void> => {
     return;
   }
 
-  await testModel(
-    model,
-    noisyTraining,
-    tensorTrainingData,
-    trainingContainer,
-  );
+  await testModel(model, noisyTraining, tensorTrainingData, trainingContainer);
 
   await testModel(model, noisyTest, tensorTrainingData, testContainer);
 

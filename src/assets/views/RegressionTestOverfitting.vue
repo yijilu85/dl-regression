@@ -74,10 +74,12 @@
           <th>Epochen</th>
           <th>Trainings-MSE</th>
           <th>Test-MSE</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="trainingResults.length === 0">
+          <td><v-skeleton-loader type="text" class="table-skeleton" /></td>
           <td><v-skeleton-loader type="text" class="table-skeleton" /></td>
           <td><v-skeleton-loader type="text" class="table-skeleton" /></td>
           <td><v-skeleton-loader type="text" class="table-skeleton" /></td>
@@ -93,6 +95,22 @@
           <td>{{ result.epochs }}</td>
           <td>{{ formatLoss(result.trainingMse) }}</td>
           <td>{{ formatLoss(result.testMse) }}</td>
+          <td class="status-chips">
+            <v-chip
+              v-if="result.epochs === bestFitEpochs"
+              color="success"
+              size="small"
+            >
+              Best Fit
+            </v-chip>
+            <v-chip
+              v-if="result.epochs === overfitEpochs"
+              color="error"
+              size="small"
+            >
+              Overfit
+            </v-chip>
+          </td>
         </tr>
       </tbody>
     </v-table>
@@ -251,6 +269,28 @@ const mseChartData = computed<ChartData<"line">>(() => ({
       borderColor: "rgb(255, 99, 132)",
       backgroundColor: "rgba(255, 99, 132, 0.3)",
       tension: 0.2,
+    },
+    {
+      label: "Best Fit",
+      data: trainingResults.value.map((result) =>
+        result.epochs === bestFitEpochs.value ? result.testMse : null,
+      ),
+      borderColor: "rgb(76, 175, 80)",
+      backgroundColor: "rgb(76, 175, 80)",
+      pointRadius: 7,
+      pointHoverRadius: 9,
+      showLine: false,
+    },
+    {
+      label: "Overfit",
+      data: trainingResults.value.map((result) =>
+        result.epochs === overfitEpochs.value ? result.testMse : null,
+      ),
+      borderColor: "rgb(244, 67, 54)",
+      backgroundColor: "rgb(244, 67, 54)",
+      pointRadius: 7,
+      pointHoverRadius: 9,
+      showLine: false,
     },
   ],
 }));
@@ -453,6 +493,11 @@ watch(() => props.active, start);
 
 .table-skeleton {
   width: 6rem;
+}
+
+.status-chips {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .chart-container :deep([aria-roledescription="legend"]) {

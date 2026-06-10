@@ -43,15 +43,28 @@
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Ein neues Modell wird bis {{ MAX_EPOCHS }} Epochen in 100er-Schritten
-      trainiert. Nach Abschluss des Trainings wird die kleinste Test-MSE als
-      Best Fit markiert. Erst in den darauffolgenden Stufen wird Overfitting
-      gesucht: Overfitting wird dann registriert, wenn in zwei
-      aufeinanderfolgenden Übergängen die Test-MSE und der Abstand zwischen
-      Test- und Trainings-MSE wachsen. Die erste so gefundene Stufe wird als
-      Overfit-Schwelle registriert und die zugehörigen Gewichte werden für den
-      Scatterplot verwendet. Die Auswertung erfolgt rückblickend und beeinflusst
-      das Training nicht.
+      <p>
+        Ein neues Modell wird kontinuierlich bis {{ MAX_EPOCHS }} Epochen
+        trainiert. Nach jeweils 100 Epochen werden Trainings- und Test-MSE
+        gemessen. Nach Abschluss des Trainings wird – wie in R3 – der Messpunkt
+        mit der kleinsten Test-MSE rückblickend als Best Fit markiert.
+      </p>
+      <p>
+        Anschließend werden ausschließlich die Messpunkte nach dem Best Fit
+        untersucht. Overfitting wird registriert, wenn in zwei
+        aufeinanderfolgenden Übergängen sowohl die Test-MSE als auch der Abstand
+        zwischen Test- und Trainings-MSE wachsen. Die erste Stufe dieser
+        bestätigten Entwicklung wird als Overfit-Schwelle markiert. Der
+        zugehörige Modellzustand wird für die Scatterplots wiederhergestellt.
+      </p>
+      <p>
+        Aufgrund der geringen Datenmenge kann die kleinste Test-MSE erst bei
+        einer der letzten untersuchten Epochenzahlen auftreten. In diesem Fall
+        stehen möglicherweise nicht genügend nachfolgende Messpunkte zur
+        Verfügung, um Overfitting nach dem festgelegten Kriterium zu bestätigen.
+        Die Auswertung erfolgt rückblickend und beeinflusst weder das Training
+        noch dessen Dauer.
+      </p>
     </v-card-text>
   </v-card>
   <v-card class="mt-4 pa-4">

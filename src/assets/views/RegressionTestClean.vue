@@ -9,10 +9,11 @@
     <v-divider class="my-3" />
     <v-card-subtitle>Diskussion</v-card-subtitle>
     <v-card-text>
-      Ein Modell wird auf unverrauschten Daten kontinuierlich von 100 bis 500
-      Epochen trainiert. Nach jeweils 100 Epochen werden Trainings- und Test-MSE
-      protokolliert. Da Trainings- und Testpunkte derselben rauschfreien
-      Funktion folgen, sollten beide Werte ähnlich ausfallen.
+      Ein Modell wird auf den unverrauschten Daten kontinuierlich bis 500
+      Epochen trainiert. Nach jeweils 100 Epochen werden die Trainings- und
+      Test-MSE protokolliert. Da die Trainings- und Testpunkte derselben
+      rauschfreien Funktion folgen, sollten beide Werte bereits innerhalb dieses
+      Epochenbereichs ähnlich ausfallen.
     </v-card-text>
   </v-card>
   <v-card class="mt-4 pa-4">

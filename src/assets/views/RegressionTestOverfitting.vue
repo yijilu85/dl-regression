@@ -228,7 +228,11 @@ const hasOverfittingTrend = (
   const previousGap = previous.testMse - previous.trainingMse;
   const currentGap = current.testMse - current.trainingMse;
 
-  return current.testMse > previous.testMse && currentGap > previousGap;
+  return (
+    current.testMse > previous.testMse &&
+    currentGap > previousGap &&
+    current.trainingMse < current.testMse
+  );
 };
 
 const mseChartData = computed<ChartData<"line">>(() => ({
